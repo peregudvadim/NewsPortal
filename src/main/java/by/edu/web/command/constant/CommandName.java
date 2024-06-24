@@ -1,0 +1,33 @@
+package by.edu.web.command.constant;
+
+public enum CommandName {
+
+    DO_SIGN_IN,
+    DO_SIGN_OUT,
+    DO_REGISTRATION,
+    DO_CHANGE_ROLE,
+    DO_CHANGE_NEWS,
+
+
+
+    GO_TO_ABOUT_PAGE,
+    GO_TO_MAIN_PAGE,
+    GO_TO_NEWS_PAGE,
+    GO_TO_REGISTRATION_PAGE,
+    GO_TO_SIGN_IN_PAGE,
+    GO_TO_ERROR_PAGE,
+    GO_TO_FIND_PAGE,
+    GO_TO_EDIT_PAGE,
+    GO_TO_ADD_NEWS_PAGE,
+    GO_TO_FULL_NEWS_PAGE,
+    GO_TO_CHANGE_ROLE_PAGE,
+    GO_TO_USER_LIST,
+
+
+    LOCALIZATION,
+
+    ADD_NEWS,
+
+
+    NO_SUCH_COMMAND
+}
