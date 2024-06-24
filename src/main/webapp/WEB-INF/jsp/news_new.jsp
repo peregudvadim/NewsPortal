@@ -60,6 +60,7 @@
                 <div class="form-group mb-2">
                     <label for="category" class="mr-2"><fmt:message key="local.newscategory"/></label>
                     <select class="form-control mr-2" id="category" name="category">
+                        <option value="" disabled selected><fmt:message key="local.allcategories"/></option>
                         <c:forEach var="category" items="${requestScope.categoryList}">
                             <option value="${category}">${category}</option>
                         </c:forEach>

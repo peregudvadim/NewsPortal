@@ -41,6 +41,7 @@
         <div class="form-group">
             <label for="title"><fmt:message key="local.newstitle"/></label>
             <select class="form-control" id="title" name="title">
+                <option value="" disabled selected><fmt:message key="local.newschoose"/></option>
                 <c:forEach var="newsTitle" items="${requestScope.newsTitles}">
                     <option value="${newsTitle}">${newsTitle}</option>
                 </c:forEach>

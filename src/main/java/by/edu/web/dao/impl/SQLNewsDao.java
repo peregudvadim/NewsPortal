@@ -180,7 +180,6 @@ public class SQLNewsDao implements NewsDao {
             con = pool.takeConection();
             ps = con.prepareStatement(SQL_SELECT_TITLES_NEWS);
             rs = ps.executeQuery();
-            newsTitlesList.add("Выберите новость");
             while (rs.next()) {
 
                 newsTitlesList.add(rs.getString("title"));
@@ -300,7 +299,6 @@ public class SQLNewsDao implements NewsDao {
             con = pool.takeConection();
             ps = con.prepareStatement(SQL_SELECT_CATEGORY_TITLES);
             rs = ps.executeQuery();
-            categoryList.add("All categories");
             while (rs.next()) {
 
                 categoryList.add(rs.getString("title"));
