@@ -13,7 +13,7 @@ public class CommandProvider {
         commands.put(CommandName.GO_TO_MAIN_PAGE, new GoToMainPage());
         commands.put(CommandName.GO_TO_NEWS_PAGE, new GoToNewsPage());
         commands.put(CommandName.GO_TO_REGISTRATION_PAGE, new GoToRegistrationPage());
-         commands.put(CommandName.GO_TO_EDIT_PAGE, new GoToEditPage());
+        commands.put(CommandName.GO_TO_EDIT_PAGE, new GoToEditPage());
         commands.put(CommandName.GO_TO_ADD_NEWS_PAGE, new GoToAddNewsPage());
         commands.put(CommandName.GO_TO_SIGN_IN_PAGE, new GoToSignInPage());
         commands.put(CommandName.GO_TO_FULL_NEWS_PAGE, new GoToFullNewsPage());
@@ -22,17 +22,13 @@ public class CommandProvider {
 
         commands.put(CommandName.LOCALIZATION, new Localization());
 
-
-
         commands.put(CommandName.DO_REGISTRATION, new DoRegistration());
         commands.put(CommandName.DO_SIGN_IN, new DoSignIn());
         commands.put(CommandName.DO_SIGN_OUT, new DoSignOut());
         commands.put(CommandName.DO_CHANGE_ROLE, new DoChangeRole());
         commands.put(CommandName.DO_CHANGE_NEWS, new DoChangeNews());
 
-
         commands.put(CommandName.GO_TO_USER_LIST, new GoToUserList());
-
 
         commands.put(CommandName.NO_SUCH_COMMAND, new NoSuchCommand());
     }

@@ -6,7 +6,7 @@ public class DBResourceManager {
 
     private final static DBResourceManager instance = new DBResourceManager();
 
-//    ResourceBundle jdbcProperties = ResourceBundle.getBundle("resources.db");
+
     private final ResourceBundle jdbcProperties = ResourceBundle.getBundle("db");
 
     public static DBResourceManager getInstance() {
