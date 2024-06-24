@@ -16,7 +16,7 @@ import java.util.List;
 public class SQLUserDao implements UserDao {
     private final ConnectionPool pool = ConnectionPool.getInstance();
 
-    private static final String SQL_SELECT_USER_LIST = "SELECT * FROM users";
+    private static final String SQL_SELECT_USER_LIST = "SELECT * FROM users WHERE login <> ?";
     private static final String SQL_INSERT_USER = "INSERT INTO users (login, password, name) VALUES (?, ?, ?)";
     private static final String SQL_INSERT_CONTACTS = "INSERT INTO contacts (phone, email, user_id) VALUES (?, ?, ?)";
     private static final String SQL_SELECT_LOGIN_PASS = "SELECT * FROM users WHERE login = ? AND password = ?";
@@ -149,17 +149,16 @@ public class SQLUserDao implements UserDao {
         int userId = 0;
         String login = null;
         String role = null;
+        String excludedLogin = "admin";
         try {
             con = pool.takeConection();
 
             ps = con.prepareStatement(SQL_SELECT_USER_LIST);
+            ps.setString(1,excludedLogin);
             rs = ps.executeQuery();
             while (rs.next()) {
                 userId = rs.getInt("user_id");
                 login = rs.getString("login");
-                if(login.equals("admin")){
-                    continue;
-                }
                 role = getRoleByUserId(userId);
 
                 userList.add(new User(login, role, userId));

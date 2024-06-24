@@ -8,6 +8,8 @@ public class ParamConst {
     public static final String EMAIL_PARAM = "email";
     public static final String CATEGORY_PARAM = "category";
     public static final String ALL_CATEGORIES = "All categories";
+    public static final String COMMAND_PARAM = "command";
+
 
     public static final String NEWS_TITLE_PARAM = "newstitle";
     public static final String TITLE_PARAM = "title";
