@@ -12,301 +12,226 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class SQLUserDao implements UserDao {
-    private final ConnectionPool pool = ConnectionPool.getInstance();
 
-    private static final String SQL_SELECT_USER_LIST = "SELECT * FROM users WHERE login <> ?";
-    private static final String SQL_INSERT_USER = "INSERT INTO users (login, password, name) VALUES (?, ?, ?)";
-    private static final String SQL_INSERT_CONTACTS = "INSERT INTO contacts (phone, email, user_id) VALUES (?, ?, ?)";
-    private static final String SQL_SELECT_LOGIN_PASS = "SELECT * FROM users WHERE login = ? AND password = ?";
-    private static final String SQL_SELECT_LOGIN = "SELECT * FROM users WHERE login = ?";
-    private static final String SQL_SELECT_ROLE_ID = "SELECT * FROM roles WHERE title = ?";
-    private static final String SQL_SELECT_ROLE_TITLE = "SELECT * FROM roles WHERE role_id = ?";
-    private static final String SQL_INSERT_ROLE = "INSERT INTO roles_has_users (roles_role_id, users_user_id) VALUES (?, ?)";
-    private static final String SQL_CHANGE_ROLE = "UPDATE roles_has_users SET roles_role_id = ? WHERE users_user_id = ?";
-    private static final String SQL_SELECT_ROLE_HAS_USER = "SELECT * FROM roles_has_users WHERE users_user_id = ?";
-    private static final String SQL_SELECT_LOGIN_BY_USER_ID = "SELECT * FROM users WHERE user_id = ?";
+    private static final ConnectionPool pool = ConnectionPool.getInstance();
 
+    private static final String EXCLUDED_LOGIN = "admin";
 
+    private static final String SQL_SELECT_USER_LIST =
+            "SELECT * FROM users WHERE login <> ?";
+    private static final String SQL_INSERT_USER =
+            "INSERT INTO users (login, password, name) VALUES (?, ?, ?)";
+    private static final String SQL_INSERT_CONTACTS =
+            "INSERT INTO contacts (phone, email, user_id) VALUES (?, ?, ?)";
+    private static final String SQL_SELECT_LOGIN_PASS =
+            "SELECT * FROM users WHERE login = ? AND password = ?";
+    private static final String SQL_SELECT_LOGIN =
+            "SELECT * FROM users WHERE login = ?";
+    private static final String SQL_SELECT_ROLE_ID =
+            "SELECT * FROM roles WHERE title = ?";
+    private static final String SQL_SELECT_ROLE_TITLE =
+            "SELECT * FROM roles WHERE role_id = ?";
+    private static final String SQL_INSERT_ROLE =
+            "INSERT INTO roles_has_users (roles_role_id, users_user_id) VALUES (?, ?)";
+    private static final String SQL_CHANGE_ROLE =
+            "UPDATE roles_has_users SET roles_role_id = ? WHERE users_user_id = ?";
+    private static final String SQL_SELECT_ROLE_HAS_USER =
+            "SELECT * FROM roles_has_users WHERE users_user_id = ?";
+    private static final String SQL_SELECT_LOGIN_BY_USER_ID =
+            "SELECT * FROM users WHERE user_id = ?";
 
+    private static final int DEFAULT_ROLE_ID = 2; // GUEST
 
     @Override
     public boolean registration(UserInfo userInfo) throws DaoException {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet generatedKeys = null;
+        if (getUserIdByLogin(userInfo.getLogin()) > 0) return false;
 
-        try {
-            if(getUserIdByLogin(userInfo.getLogin())>0){
-                return false;
-            }
-
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_INSERT_USER, Statement.RETURN_GENERATED_KEYS);
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_INSERT_USER, Statement.RETURN_GENERATED_KEYS)
+        ) {
             ps.setString(1, userInfo.getLogin());
             ps.setString(2, userInfo.getPassword());
             ps.setString(3, userInfo.getName());
-
             ps.executeUpdate();
-            generatedKeys = ps.getGeneratedKeys();
-            if (generatedKeys.next()) {
-                int newUserId = (int) generatedKeys.getLong(1);
-                addContacts(userInfo.getPhone(), userInfo.getEmail(), newUserId);
-                setRole(newUserId);
+
+            try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    int userId = generatedKeys.getInt(1);
+                    addContacts(userInfo.getPhone(), userInfo.getEmail(), userId);
+                    setRole(userId);
+                }
             }
-
-            generatedKeys.close();
             return true;
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to register new user!", e);
 
-        } finally {
-
-            pool.closeConnection(ps, con);
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error registering new user", e);
         }
-
     }
 
     @Override
     public int getRoleId(String roleTitle) throws DaoException {
-        Connection con = null;
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        int roleId = 0;
-        try {
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_SELECT_ROLE_ID);
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_SELECT_ROLE_ID)
+        ) {
             ps.setString(1, roleTitle);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                roleId = rs.getInt("role_id");
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("role_id") : 0;
             }
-            return roleId;
-
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to get roleId", e);
-
-        } finally {
-            pool.closeConnection(ps, con, rs);
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error getting role ID", e);
         }
-
     }
 
     @Override
     public String getRoleTitle(int roleId) throws DaoException {
-        Connection con = null;
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        String roleTitle = null;
-        try {
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_SELECT_ROLE_TITLE);
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_SELECT_ROLE_TITLE)
+        ) {
             ps.setInt(1, roleId);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                roleTitle = rs.getString("title");
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("title") : null;
             }
-            return roleTitle;
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to get roleTitle", e);
-
-        } finally {
-            pool.closeConnection(ps, con, rs);
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error getting role title", e);
         }
-
     }
 
     public String getRoleByUserId(int userId) throws DaoException {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_SELECT_ROLE_HAS_USER);
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_SELECT_ROLE_HAS_USER)
+        ) {
             ps.setInt(1, userId);
-            rs = ps.executeQuery();
-            int roleID = 2;
-            if (rs.next()) {
-                roleID = rs.getInt("roles_role_id");
+            try (ResultSet rs = ps.executeQuery()) {
+                int roleId = rs.next() ? rs.getInt("roles_role_id") : DEFAULT_ROLE_ID;
+                return getRoleTitle(roleId);
             }
-            return getRoleTitle(roleID);
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to add new role!", e);
-        } finally {
-            pool.closeConnection(ps, con, rs);
-
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error getting user role", e);
         }
     }
 
-
     @Override
     public List<User> getUserList() throws DaoException {
-        Connection con = null;
-        ResultSet rs = null;
-        PreparedStatement ps = null;
         List<User> userList = new ArrayList<>();
-        int userId = 0;
-        String login = null;
-        String role = null;
-        String excludedLogin = "admin";
-        try {
-            con = pool.takeConection();
-
-            ps = con.prepareStatement(SQL_SELECT_USER_LIST);
-            ps.setString(1,excludedLogin);
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                userId = rs.getInt("user_id");
-                login = rs.getString("login");
-                role = getRoleByUserId(userId);
-
-                userList.add(new User(login, role, userId));
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_SELECT_USER_LIST)
+        ) {
+            ps.setString(1, EXCLUDED_LOGIN);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int userId = rs.getInt("user_id");
+                    String login = rs.getString("login");
+                    String role = getRoleByUserId(userId);
+                    userList.add(new User(login, role, userId));
+                }
             }
             return userList;
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to get User list", e);
-
-        } finally {
-            pool.closeConnection(ps, con, rs);
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error getting user list", e);
         }
     }
 
     @Override
     public String getLoginByUserId(int userId) throws DaoException {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        String login=null;
-        try {
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_SELECT_LOGIN_BY_USER_ID);
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_SELECT_LOGIN_BY_USER_ID)
+        ) {
             ps.setInt(1, userId);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                login = rs.getString("login");
-
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("login") : null;
             }
-            return login;
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to get login", e);
-        } finally {
-            pool.closeConnection(ps, con, rs);
-
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error getting login by userId", e);
         }
     }
 
-
     @Override
     public boolean addContacts(String phone, String email, int userId) throws DaoException {
-        Connection con = null;
-        PreparedStatement ps = null;
-        try {
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_INSERT_CONTACTS);
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_INSERT_CONTACTS)
+        ) {
             ps.setString(1, phone);
             ps.setString(2, email);
             ps.setInt(3, userId);
             return ps.executeUpdate() > 0;
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to add new contacts!", e);
-        } finally {
-            pool.closeConnection(ps, con);
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error adding contacts", e);
         }
     }
 
     @Override
     public boolean setRole(int userId) throws DaoException {
-
-        Connection con = null;
-        PreparedStatement ps = null;
-        int roleIdByDefault = 2; //GUEST
-        try {
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_INSERT_ROLE);
-            ps.setInt(1, 2);
-            ps.setInt(roleIdByDefault, userId);
-
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_INSERT_ROLE)
+        ) {
+            ps.setInt(1, DEFAULT_ROLE_ID);
+            ps.setInt(2, userId);
             return ps.executeUpdate() > 0;
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to add new role!", e);
-        } finally {
-            pool.closeConnection(ps, con);
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error setting default role", e);
         }
     }
 
     @Override
-    public boolean changeRole(String login,String newRole) throws DaoException {
-
-        Connection con = null;
-        PreparedStatement ps = null;
+    public boolean changeRole(String login, String newRole) throws DaoException {
         int userId = getUserIdByLogin(login);
         int newRoleId = getRoleId(newRole);
-        try {
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_CHANGE_ROLE);
+
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_CHANGE_ROLE)
+        ) {
             ps.setInt(1, newRoleId);
             ps.setInt(2, userId);
             return ps.executeUpdate() > 0;
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to change role!", e);
-        } finally {
-            pool.closeConnection(ps, con);
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error changing user role", e);
         }
     }
-
 
     @Override
     public User signIn(AuthInfo authInfo) throws DaoException {
-        Connection con = null;
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        try {
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_SELECT_LOGIN_PASS);
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_SELECT_LOGIN_PASS)
+        ) {
             ps.setString(1, authInfo.getLogin());
             ps.setString(2, authInfo.getPassword());
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                String login = rs.getString("login");
-                int userId = rs.getInt("user_id");
-                String roleTitle = getRoleByUserId(userId);
-                return new User(login, roleTitle, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int userId = rs.getInt("user_id");
+                    String login = rs.getString("login");
+                    String role = getRoleByUserId(userId);
+                    return new User(login, role, userId);
+                }
+                return null;
             }
-            return null;
-
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to signIn!", e);
-
-        } finally {
-            pool.closeConnection(ps, con, rs);
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error during sign-in", e);
         }
     }
-
 
     @Override
     public int getUserIdByLogin(String login) throws DaoException {
-        Connection con = null;
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        try {
-            con = pool.takeConection();
-            ps = con.prepareStatement(SQL_SELECT_LOGIN);
+        try (
+                Connection con = pool.takeConection();
+                PreparedStatement ps = con.prepareStatement(SQL_SELECT_LOGIN)
+        ) {
             ps.setString(1, login);
-
-            rs = ps.executeQuery();
-            int userId = 0;
-            if (rs.next()) {
-                userId = rs.getInt("user_id");
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("user_id") : 0;
             }
-            return userId;
-
-        } catch (ConnectionPoolException | SQLException e) {
-            throw new DaoException("Error to return UserId!", e);
-
-        } finally {
-            pool.closeConnection(ps, con, rs);
+        } catch (SQLException | ConnectionPoolException e) {
+            throw new DaoException("Error getting user ID by login", e);
         }
     }
-
 }
